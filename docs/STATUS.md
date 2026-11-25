@@ -1,46 +1,49 @@
-# Build status (2026-11-25, checkpoint)
+# Build status (2026-11-25, evening)
 
-## Built and verified on muthasafal.atlassian.net (development environment)
-- **Deployed and installed** in Jira and Confluence. Version 2.x qualifies for "Runs on Atlassian".
-- **Domain layer** (`src/domain/`): 38 vitest + fast-check tests pass (`npm test`), covering all four BRIEF section 9 properties.
-- **Sample loader** (Jira global page: Apps → Traceline, Dev):
-  - Created project PUMP and Confluence space PUMPSAMPLE: 150 artifacts.
-  - It found exactly the 6 planned gaps and 3 suspect links.
-  - Release gate: "Not yet: v2.3 has 9 blocking items, including 3 suspect links."
-  - Jira link direction is correct; Confluence pages appear as remote links.
-- **Issue panel "Trace"** (on PUMP-4): chain, plain-text statuses, suspect explanations and actions, and the §5.7 gap.
-- **Product triggers**: editing PUMP-3's description logged `version bump PUMP-3 {"newSuspects":3}`, and the panel showed the 3 new suspect links.
+All BRIEF section 7 modules are built and deployed to the **development** environment on muthasafal.atlassian.net (installed in Jira and Confluence, Teamwork Graph scopes granted). "Verified" below means it was checked on the site; "deployed" means it was accepted by Forge and still needs a look.
 
-## Waiting on the user (manual)
-1. **Add the validator to PUMP's Done transition**, then test it:
-   - Go to Project settings → Workflows (`/plugins/servlet/project-config/PUMP/workflows`), edit the workflow, and select the transition into Done.
-   - Under Rules, add the rule (validator) "Requires passing verification (Traceline)". Save and publish.
-   - Try moving **PUMP-69** (IMP-021, which implements SRS-021, whose test is failing) to Done. It should be blocked with a Traceline message.
-2. Not yet tested by hand: "Record pass/fail" on a test issue, "Mark link reviewed", "Clear with justification", and "Remove sample data".
+| Module | State |
+|---|---|
+| Domain layer (`src/domain/`) | 38 vitest + fast-check tests pass (all four BRIEF section 9 properties) |
+| Sample loader / remover | **Verified**: 150 artifacts, the 6 planned gaps, 3 suspect links, v2.3 gate red with 9 blockers. Remover not yet clicked. |
+| Jira issue panel "Trace" | **Verified** on PUMP-4 and PUMP-3 |
+| Product triggers + suspect detection | **Verified**: editing PUMP-3 logged `version bump PUMP-3 {"newSuspects":3}` |
+| Workflow validator | Deployed; **waiting on the user** to add it to PUMP's Done transition |
+| Compliance cockpit (Jira global page, Custom UI) | Deployed: gate with snapshots, clause coverage, gaps by type, suspect timeline, trace explorer with owners, sample loader |
+| Traceability matrix (Confluence macro and space page, Custom UI) | Deployed: filters (release, class, status, clause), accessible cells, DHF export (PDF via pdf-lib, matrix CSV, evidence CSV) |
+| Rovo agent "Traceline Auditor" | Deployed, with 9 actions and the attached `rovo:skill` |
+| `rovo:mcp` "Traceline" | Deployed, with 7 tools (trace-for-file, impact-of-change, gaps-for-release, what-to-retest, trace-chain, coverage-by-clause, who-signs-off) |
+| Teamwork Graph owner lookup | Deployed: curated `confluencePageOwners`/`Contributors`, optional persisted Cypher (`docs/TEAMWORK_GRAPH.md`), REST fallback plus setup hint |
+
+Permission awareness: every person-facing answer (panel, cockpit, matrix, Rovo, MCP) is computed on the full graph, then redacted to the issues and pages that person can see (`src/resolvers/visibility.ts`).
+
+## To verify on the site (needs a person in a browser)
+1. **Cockpit**: Jira → Apps → Traceline. Check the gate, coverage, timeline, "Snapshot for audit trail", and "Trace any item" (PUMP-4) with "Who signs off".
+2. **Matrix**: in the PUMPSAMPLE space, either the sidebar "Traceability matrix" page, or insert the "Traceability matrix (Traceline)" macro on the DHF overview page. Then test the filters, Export DHF (PDF) and both CSVs. Downloads from the Custom UI iframe are untested.
+3. **Rovo**: open Rovo chat → Agents → Traceline Auditor. Ask "Can we ship v2.3?", "What must be re-tested if PUMP-4 changes?", "Who signs off on PUMP-4?" and "Run a mock audit for v2.3". If Rovo is not enabled on the site, an org admin enables it in Atlassian Administration → Apps → AI settings / Rovo.
+4. **MCP**: Atlassian Administration → Apps → Sites → Connected apps → Traceline → enable the MCP tools. Then connect an IDE to `https://mcp.atlassian.com/forge/93b72ef4-1337-46ac-b78e-3cbad7877ede` and call `trace-for-file` with `src/occlusion-monitor/`.
+5. **Validator**: add "Requires passing verification (Traceline)" to PUMP's Done transition, then try moving PUMP-69 to Done.
+6. **Optional TWG persisted query**: register the Cypher in `docs/TEAMWORK_GRAPH.md` in the Query Builder; saving its key in settings is not yet exposed in the UI (resolver `saveTwgQueryKey` exists).
 
 ## Known issues
-- The `jira:adminPage` link from `forge install` returns 404. The same UI is on the global page (`/jira/apps/<appId>/<envId>`). Check the admin page URL, or drop the module.
-- The trace chain is wider than the issue panel (horizontal scroll). Consider a compact mode.
-- The seed job does not log its steps; progress is only visible in the UI.
+- The `jira:adminPage` link from `forge install` returns 404. Everything it offers is on the cockpit, except the settings UI (pack, default level, validator levels), which is still only in the admin page. Move the settings into the cockpit, then drop the admin page.
+- The issue-panel chain is wider than the panel (horizontal scroll).
+- Seeder steps aren't logged; progress is only shown in the UI.
 
-## Next, in order (BRIEF section 7)
-1. Confirm the validator works (above).
-2. Rovo Auditor agent: `rovo:agent` plus `action` modules packaged as a `rovo:skill`. The domain functions already exist: `evaluateGate`, `impactOfChange`, `traceChain`, `evaluate().coverage`, `draftImpactFacts`, `mockAudit`.
-3. `rovo:mcp` tools: trace-for-file (`traceForPath`), impact-of-change, gaps-for-release, what-to-retest.
-4. Compliance cockpit as Custom UI on the global page: clause coverage, suspect timeline (`repo.suspectTimeline`), release gate with snapshot (`repo.saveSnapshot`). Keep the sample loader on it.
-5. Confluence matrix macro with DHF export (pdf-lib + CSV).
-6. Teamwork Graph owner lookup (persisted Cypher via `requestTeamworkGraph`, with REST fallback and a setup hint).
-7. README judge instructions; Marketplace listing (ask the user first).
+## Next
+1. Verify the items above and fix what breaks.
+2. Move settings (including the TWG query key) into the cockpit; remove `jira:adminPage`.
+3. README judge instructions (install link, enabling Rovo, granting Teamwork Graph scopes, sample loader, where each feature is).
+4. Production deploy, distribution link, video, and Marketplace listing (**ask the user first**).
 
 ## How to resume
-- Forge credentials live in `Hackathon\.env` (FORGE_EMAIL, FORGE_API_TOKEN).
-- **Always run Forge through the wrapper. Never run bare `forge` in the sandboxed Bash tool**: its credential-file check fails there and deletes the saved login.
+- Forge credentials live in `Hackathon\.env`. **Always** run Forge through the wrapper; never run bare `forge` in the sandboxed Bash tool (it deletes the saved login).
   ```powershell
-  & C:\Users\notch\OneDrive\Desktop\Hackathon\forge.ps1 lint --non-interactive
+  npm run predeploy
   & C:\Users\notch\OneDrive\Desktop\Hackathon\forge.ps1 deploy --non-interactive -e development
-  & C:\Users\notch\OneDrive\Desktop\Hackathon\forge.ps1 install --non-interactive --upgrade --site muthasafal.atlassian.net --product jira -e development
+  & C:\Users\notch\OneDrive\Desktop\Hackathon\forge.ps1 install --upgrade --non-interactive --site muthasafal.atlassian.net --product jira -e development
   & C:\Users\notch\OneDrive\Desktop\Hackathon\forge.ps1 logs -e development --since 15m --non-interactive
   ```
-- Tests and type checks: `npm test` and `npm run typecheck`.
-- Issue key map for the sample: SRS-n = PUMP-n (1–30); HAZ = PUMP-31..38; RC = PUMP-39..48; IMP = PUMP-49..83; VER = PUMP-84..123.
-- App URL: `https://muthasafal.atlassian.net/jira/apps/93b72ef4-1337-46ac-b78e-3cbad7877ede/e0df3588-2233-468f-8d44-6209ee33c18d`
+- `npm run predeploy` typechecks, runs the tests and builds both Custom UI apps (`static/*/build` is gitignored, so build before every deploy).
+- Sample key map: SRS-n = PUMP-n (1–30); HAZ = PUMP-31..38; RC = PUMP-39..48; IMP = PUMP-49..83; VER = PUMP-84..123.
+- Cockpit URL: `https://muthasafal.atlassian.net/jira/apps/93b72ef4-1337-46ac-b78e-3cbad7877ede/e0df3588-2233-468f-8d44-6209ee33c18d`
