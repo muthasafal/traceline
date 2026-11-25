@@ -18,7 +18,9 @@ modules:
   jira:workflowValidator:
     - key: passing-verification-validator
       name: Requires passing verification (Traceline)
-      description: Blocks the transition when the issue implements a requirement at a guarded safety level that has no verification passing against its current version.
+      description: Blocks the transition when the issue implements a requirement at a
+        guarded safety level that has no verification passing against its
+        current version.
       function: validate-done
   trigger:
     - key: issue-events
@@ -108,6 +110,6 @@ permissions:
     - read:space:confluence
     - read:label:confluence
 app:
-  id: ari:cloud:ecosystem::app/REPLACE_WITH_FORGE_REGISTER
+  id: ari:cloud:ecosystem::app/93b72ef4-1337-46ac-b78e-3cbad7877ede
   runtime:
     name: nodejs24.x
