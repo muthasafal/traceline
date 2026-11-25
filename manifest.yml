@@ -43,8 +43,6 @@ modules:
       events:
         - avi:confluence:created:page
         - avi:confluence:updated:page
-      filter:
-        ignoreSelf: true
     - key: lifecycle-events
       function: on-lifecycle
       events:
@@ -70,13 +68,10 @@ modules:
       handler: index.validateDone
     - key: on-issue
       handler: index.onIssueEvent
-      timeoutSeconds: 60
     - key: on-link
       handler: index.onLinkEvent
-      timeoutSeconds: 60
     - key: on-page
       handler: index.onPageEvent
-      timeoutSeconds: 60
     - key: on-lifecycle
       handler: index.onLifecycle
     - key: nightly
