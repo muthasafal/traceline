@@ -7,3 +7,4 @@ export * from './gate';
 export * from './status';
 export * from './audit';
 export * from './packs';
+export * from './validator';

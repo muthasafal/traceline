@@ -1,0 +1,113 @@
+modules:
+  jira:issuePanel:
+    - key: trace-panel
+      resource: panel
+      resolver:
+        function: panel-resolver
+      render: native
+      title: Trace
+      icon: resource:icons;trace.svg
+  jira:adminPage:
+    - key: traceline-admin
+      resource: admin
+      resolver:
+        function: admin-resolver
+      render: native
+      title: Traceline
+      useAsGetStarted: true
+  jira:workflowValidator:
+    - key: passing-verification-validator
+      name: Requires passing verification (Traceline)
+      description: Blocks the transition when the issue implements a requirement at a guarded safety level that has no verification passing against its current version.
+      function: validate-done
+  trigger:
+    - key: issue-events
+      function: on-issue
+      events:
+        - avi:jira:created:issue
+        - avi:jira:updated:issue
+        - avi:jira:deleted:issue
+      filter:
+        ignoreSelf: true
+    - key: link-events
+      function: on-link
+      events:
+        - avi:jira:created:issuelink
+        - avi:jira:deleted:issuelink
+      filter:
+        ignoreSelf: true
+    - key: page-events
+      function: on-page
+      events:
+        - avi:confluence:created:page
+        - avi:confluence:updated:page
+      filter:
+        ignoreSelf: true
+    - key: lifecycle-events
+      function: on-lifecycle
+      events:
+        - avi:forge:installed:app
+        - avi:forge:upgraded:app
+  scheduledTrigger:
+    - key: nightly-recompute
+      function: nightly
+      interval: day
+  consumer:
+    - key: jobs-consumer
+      queue: traceline-jobs
+      function: run-job
+  sql:
+    - key: main
+      engine: mysql
+  function:
+    - key: panel-resolver
+      handler: index.panelHandler
+    - key: admin-resolver
+      handler: index.adminHandler
+    - key: validate-done
+      handler: index.validateDone
+    - key: on-issue
+      handler: index.onIssueEvent
+      timeoutSeconds: 60
+    - key: on-link
+      handler: index.onLinkEvent
+      timeoutSeconds: 60
+    - key: on-page
+      handler: index.onPageEvent
+      timeoutSeconds: 60
+    - key: on-lifecycle
+      handler: index.onLifecycle
+    - key: nightly
+      handler: index.nightly
+    - key: run-job
+      handler: index.runJob
+      timeoutSeconds: 900
+resources:
+  - key: panel
+    path: src/frontend/panel.tsx
+  - key: admin
+    path: src/frontend/admin.tsx
+  - key: icons
+    path: static/icons
+permissions:
+  scopes:
+    - storage:app
+    - read:jira-work
+    - write:jira-work
+    - read:jira-user
+    - manage:jira-configuration
+    - manage:jira-project
+    - read:confluence-content.summary
+    - read:confluence-content.all
+    - write:confluence-content
+    - read:confluence-space.summary
+    - write:confluence-space
+    - search:confluence
+    - read:page:confluence
+    - write:page:confluence
+    - read:space:confluence
+    - read:label:confluence
+app:
+  id: ari:cloud:ecosystem::app/REPLACE_WITH_FORGE_REGISTER
+  runtime:
+    name: nodejs24.x
