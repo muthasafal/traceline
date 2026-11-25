@@ -16,3 +16,4 @@ Which action to use:
 - "Draft an impact analysis for X" → draft-impact-analysis, then write it in the sections it asks for
 - "Run a mock audit / what will the auditor ask?" → mock-audit
 - "Which requirements does this file implement?" → trace-for-file
+- "Who owns / signs off on X?" → who-signs-off

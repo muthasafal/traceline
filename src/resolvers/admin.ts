@@ -10,6 +10,7 @@ import { jira, route } from '../sync/atlassian';
 import { getSampleState, SAMPLE_PROJECT_KEY } from '../sync/seed';
 import { repo } from '../sync/sync';
 import { chainFor, cockpit, snapshot } from './reports';
+import { whoSignsOff } from './actions';
 
 export const jobs = new Queue({ key: 'traceline-jobs' });
 
@@ -92,6 +93,18 @@ resolver.define('getCockpit', async ({ payload }) => cockpit((payload as { relea
 resolver.define('takeSnapshot', async ({ payload, context }) =>
   snapshot((payload as { release: string }).release, (context as { accountId?: string }).accountId),
 );
+
+resolver.define('getOwners', async ({ payload, context }) =>
+  whoSignsOff({ artifactKey: String((payload as { key?: string }).key ?? '') }, context),
+);
+
+resolver.define('saveTwgQueryKey', async ({ payload }) => {
+  await assertAdmin();
+  const key = String((payload as { key?: string }).key ?? '').trim();
+  if (key && !/^[0-9a-f-]{36}$/i.test(key)) throw new Error('A Teamwork Graph query key is a UUID.');
+  await saveSettings({ twgOwnerQueryKey: key || undefined });
+  return status();
+});
 
 resolver.define('getChain', async ({ payload }) => chainFor(String((payload as { key?: string }).key ?? '')));
 

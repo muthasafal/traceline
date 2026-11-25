@@ -9,6 +9,7 @@ import { Gap, KIND_LABEL } from '../domain/types';
 import { ensureSchema } from '../storage/forgeSql';
 import { getSettings } from '../storage/settings';
 import { repo } from '../sync/sync';
+import { describeOwners, ownersOf } from '../twg/owners';
 import { redactor, visibleIds } from './visibility';
 
 /**
@@ -197,5 +198,29 @@ export async function traceForFile(payload: Input) {
       : `No tracked implementation item touches ${path}. Link the work item to its requirement, or add code paths to it.`,
     implementations,
     note: r.note(),
+  };
+}
+
+/** Cloud id from a Forge invocation context (Rovo/MCP actions and resolvers). */
+export function cloudIdOf(payload: unknown, context: unknown): string | undefined {
+  const c = (context ?? {}) as { cloudId?: string; installContext?: string };
+  const p = (payload ?? {}) as { context?: { cloudId?: string } };
+  return c.cloudId ?? p.context?.cloudId ?? /site\/([0-9a-f-]+)/.exec(c.installContext ?? '')?.[1];
+}
+
+export async function whoSignsOff(payload: Input, context?: unknown) {
+  const { graph, visible } = await load();
+  const key = arg(payload, 'artifactKey') ?? arg(payload, 'issueKey');
+  const root = resolveVisible(graph, visible, key);
+  if (!root) return notFound(key ?? '(no key given)');
+  const cloudId = cloudIdOf(payload, context);
+  if (!cloudId) return { answer: 'Could not determine the site for this request.', people: [] };
+  const owners = await ownersOf(graph, root, cloudId);
+  return {
+    artifact: { key: root.key, title: root.title },
+    answer: describeOwners(root, owners),
+    source: owners.source,
+    people: owners.people.map((p) => ({ name: p.name ?? 'Unknown user', role: p.role, via: p.via, teams: p.teams?.length ?? 0 })),
+    hint: owners.hint,
   };
 }

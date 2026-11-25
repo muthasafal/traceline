@@ -22,6 +22,7 @@ export {
   draftImpactAnalysis,
   mockAuditAction,
   traceForFile,
+  whoSignsOff,
 } from './resolvers/actions';
 
 const log = (msg: string, extra?: unknown) => console.log(`[traceline] ${msg}`, extra === undefined ? '' : JSON.stringify(extra));

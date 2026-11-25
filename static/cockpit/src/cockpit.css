@@ -19,3 +19,7 @@
 
 .empty { text-align: left; padding: 24px; }
 .tl-btn.danger { background: var(--tl-bad-bold); }
+.owners { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--tl-border); display: flex; flex-direction: column; gap: 6px; }
+.owners h3 { font-size: 14px; margin: 0; font-weight: 653; }
+.owners ul { margin: 0; padding-left: 18px; }
+.owners .hint { color: var(--tl-warn); }

@@ -23,6 +23,7 @@ interface Status {
   sampleProjectKey: string;
 }
 interface ChainResult { found: boolean; key?: string; summary?: string; columns?: ChainColumn[]; note?: string }
+interface Owners { answer: string; source?: string; people?: { name: string; role: string; via: string; teams: number }[]; hint?: string }
 
 const fmtDate = (iso: string) => new Date(iso).toLocaleString(undefined, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
 
@@ -164,11 +165,16 @@ function SuspectTimeline({ data }: { data: Cockpit }) {
 function Explorer() {
   const [key, setKey] = useState('');
   const [res, setRes] = useState<ChainResult>();
+  const [owners, setOwners] = useState<Owners>();
   const [busy, setBusy] = useState(false);
   const go = async (k: string) => {
     if (!k.trim()) return;
     setBusy(true);
-    try { setRes(await call<ChainResult>('getChain', { key: k })); } finally { setBusy(false); }
+    setOwners(undefined);
+    try {
+      setRes(await call<ChainResult>('getChain', { key: k }));
+      call<Owners>('getOwners', { key: k }).then(setOwners).catch(() => setOwners({ answer: 'Owner lookup is unavailable right now.' }));
+    } finally { setBusy(false); }
   };
   return (
     <section className="tl-card" aria-labelledby="ex-h">
@@ -184,6 +190,25 @@ function Explorer() {
           <p style={{ marginBottom: 8 }}>{res.summary}</p>
           <Chain columns={res.columns!} />
           {res.note ? <p className="tl-small tl-muted">{res.note}</p> : null}
+          <div className="owners" aria-live="polite">
+            <h3>Who signs off</h3>
+            {!owners ? <p className="tl-muted">Asking the Teamwork Graph…</p> : (
+              <>
+                <p>{owners.answer}</p>
+                {owners.people?.length ? (
+                  <ul>
+                    {owners.people.map((p, i) => (
+                      <li key={i}><strong>{p.name}</strong> <span className="tl-muted">· {p.role} of {p.via}{p.teams ? ` · ${p.teams} team${p.teams === 1 ? '' : 's'}` : ''}</span></li>
+                    ))}
+                  </ul>
+                ) : null}
+                {owners.source ? (
+                  <p className="tl-small tl-muted">Source: {owners.source === 'teamwork-graph' ? 'Teamwork Graph' : owners.source === 'mixed' ? 'Teamwork Graph and Jira/Confluence REST' : 'Jira/Confluence REST (fallback)'}</p>
+                ) : null}
+                {owners.hint ? <p className="tl-small hint">{owners.hint}</p> : null}
+              </>
+            )}
+          </div>
         </div>
       ) : null}
     </section>

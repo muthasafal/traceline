@@ -23,6 +23,15 @@ modules:
       title: Traceline
       icon: resource:icons;trace.svg
       layout: native
+  macro:
+    - key: traceability-matrix
+      resource: matrix
+      resolver:
+        function: matrix-resolver
+      title: Traceability matrix (Traceline)
+      description: Live traceability matrix from Jira and Confluence, with gaps highlighted and a Design History File export.
+      icon: resource:icons;trace.svg
+      layout: block
   confluence:spacePage:
     - key: traceability-matrix-page
       resource: matrix
@@ -126,6 +135,17 @@ modules:
           type: string
           required: true
           description: File path, folder or component name, for example src/occlusion-monitor/.
+    - key: who-signs-off
+      name: Who signs off
+      function: act-who-signs-off
+      actionVerb: GET
+      description: Finds who owns and signs off on a requirement or issue, using the Teamwork Graph (page owners, assignee and teams) with a Jira and Confluence fallback.
+      inputs:
+        artifactKey:
+          title: Artifact key
+          type: string
+          required: true
+          description: Jira issue key such as PUMP-4, or a reference such as SRS-004.
   rovo:skill:
     - key: traceline-auditor-skill
       source:
@@ -140,6 +160,7 @@ modules:
           - draft-impact-analysis
           - mock-audit
           - trace-for-file
+          - who-signs-off
   rovo:agent:
     - key: traceline-auditor
       name: Traceline Auditor
@@ -159,6 +180,9 @@ modules:
         - draft-impact-analysis
         - mock-audit
         - trace-for-file
+        - who-signs-off
+      skills:
+        - traceline-auditor-skill
   rovo:mcp:
     - key: traceline-mcp
       name: Traceline
@@ -223,6 +247,8 @@ modules:
       handler: index.mockAuditAction
     - key: act-trace-for-file
       handler: index.traceForFile
+    - key: act-who-signs-off
+      handler: index.whoSignsOff
     - key: panel-resolver
       handler: index.panelHandler
     - key: admin-resolver
@@ -275,7 +301,18 @@ permissions:
     - write:page:confluence
     - read:space:confluence
     - read:label:confluence
+    - read:graph:issue:jira
+    - read:graph:page:confluence
+    - read:graph:user:atlassian
+    - read:graph:team:atlassian
 app:
+  rovo:
+    tag: trace
+    description: Traceability gaps, suspect links, release gates and change impact for Jira and Confluence
+    keywords:
+      - traceability
+      - release-gate
+      - impact
   id: ari:cloud:ecosystem::app/93b72ef4-1337-46ac-b78e-3cbad7877ede
   runtime:
     name: nodejs24.x

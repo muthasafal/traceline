@@ -18,6 +18,8 @@ export interface Settings {
   linkTypes: Record<Relation, string>;
   /** Jira project keys Traceline watches. Empty means every project. */
   projects: string[];
+  /** Teamwork Graph persisted query key for the issue owner query (optional). */
+  twgOwnerQueryKey?: string;
 }
 
 export const DEFAULT_SETTINGS: Settings = {

@@ -48,14 +48,7 @@ Steering doc. Checked against developer.atlassian.com on **2026-11-25**. `docs/B
 manifest-reference/modules/{rovo-agent, rovo-action, rovo-skill, rovo-mcp, jira-issue-panel, jira-global-page, jira-workflow-validator, macro, trigger, scheduled-trigger, sql}; storage-reference/{sql, sql-api, sql-api-schema}; runtime-reference/async-events-api; events-reference/{product_events, confluence}; teamwork-graph/{call-the-teamwork-graph-api, scopes, graphql-and-cypher}; manifest-reference (runtime).
 
 ## Found while deploying (2026-11-25)
-- **A Confluence `macro` cannot coexist with a `rovo:agent` that lists `actions`.** Deploy fails server-side with `Manifest validation failed: Agent not allowed`. This was bisected on Forge CLI 16.0.0:
-  - agent with actions and no macro: OK
-  - macro plus an agent with no actions: OK
-  - macro plus an agent with even one action: fails, with or without a macro resolver, UI Kit or Custom UI, inline or file prompt
-  - `confluence:spacePage` plus an agent with actions: OK
-
-  Traceline therefore ships the matrix as a `confluence:spacePage` (same UI and DHF export). Revisit if Atlassian lifts this.
-- `rovo:agent` with `skills: [<rovo:skill key>]` (instead of `actions`) also failed with `Agent not allowed`. The `rovo:skill` module itself deploys, packaging the same actions.
+- **"Manifest validation failed: Agent not allowed" was caused by missing `app.rovo` metadata.** Without it, a `rovo:agent` with actions deployed only in some module combinations: adding a Confluence `macro`, `read:graph:*` scopes, or `skills:` on the agent triggered the error. With `app.rovo` (`tag` up to 8 characters, `description` up to 100, `keywords` totalling at most 50 characters), every combination deploys, including the agent with `actions` and `skills`. The docs only say `app.rovo` becomes mandatory on 2027-01-05, but in practice it is needed now.
 - `jira:workflowValidator` and other trigger functions cannot set `timeoutSeconds`; only consumer and scheduled-trigger functions can.
 - `filter.ignoreSelf` only works for Jira events.
 - Forge SQL allows 25 DDL statements per minute per installation. Run migrations once, record them in KVS, and never run DDL from triggers.
