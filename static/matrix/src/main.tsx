@@ -8,8 +8,20 @@ import { dhfPdf, evidenceCsv, Matrix, matrixCsv, Ref, Row } from './dhf';
 
 type RefWithUrl = Ref & { url?: string; tone?: Tone };
 
+/** Which links each row type is expected to have; others show a neutral dash when empty. */
+const EXPECTED: Record<string, Record<string, boolean>> = {
+  SRS: { 'System requirement': true, 'Hazard and risk control': false, Design: true, Implementation: true, Verification: true },
+  RC: { 'System requirement': false, 'Hazard and risk control': true, Design: false, Implementation: true, Verification: true },
+};
+
 function Refs({ items, column, row }: { items: RefWithUrl[]; column: string; row: Row }) {
-  if (!items.length) return <span className="missing" aria-label={`${column} for ${row.key}: none linked`}>none</span>;
+  if (!items.length) {
+    return EXPECTED[row.kind]?.[column] ? (
+      <span className="missing" aria-label={`${column} for ${row.key}: none linked`}>none</span>
+    ) : (
+      <span className="tl-muted" aria-label={`${column} for ${row.key}: not applicable`}>–</span>
+    );
+  }
   return (
     <ul className="refs" aria-label={`${column} for ${row.key}`}>
       {items.map((r, i) => (

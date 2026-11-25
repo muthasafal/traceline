@@ -164,11 +164,11 @@ export async function ownersOf(graph: TraceGraph, root: Artifact, cloudId: strin
   const hints: string[] = [];
   if (suspicious) {
     hints.push(
-      'The Teamwork Graph answered with no people for items that do have owners, which usually means a scope is not granted. Ask a site admin to approve Traceline’s read:graph scopes (page, user, issue, team), then try again.',
+      'The Teamwork Graph returned no people for items that do have owners, so these come from Jira and Confluence directly. Either a read:graph scope (page, user, issue, team) is not approved for Traceline yet, or the content is too new to be in the graph.',
     );
   }
   if (!settings.twgOwnerQueryKey && issues.length) {
-    hints.push('Issue assignee and team come from REST until the Traceline owner query is registered (see Traceline settings).');
+    hints.push('Issue assignee and team come from Jira directly until the Traceline owner query is registered (docs/TEAMWORK_GRAPH.md).');
   }
   return {
     source: usedGraph && usedRest ? 'mixed' : usedGraph ? 'teamwork-graph' : 'rest-fallback',
