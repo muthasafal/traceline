@@ -12,6 +12,16 @@ import { repo, syncIssue, syncPage } from './sync/sync';
 
 export { panelHandler } from './resolvers/panel';
 export { adminHandler } from './resolvers/admin';
+export {
+  gapsForRelease,
+  impactOfChangeAction,
+  whatToRetest,
+  traceChainAction,
+  coverageByClause,
+  draftImpactAnalysis,
+  mockAuditAction,
+  traceForFile,
+} from './resolvers/actions';
 
 const log = (msg: string, extra?: unknown) => console.log(`[traceline] ${msg}`, extra === undefined ? '' : JSON.stringify(extra));
 

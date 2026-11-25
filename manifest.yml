@@ -30,6 +30,138 @@ modules:
         guarded safety level that has no verification passing against its
         current version.
       function: validate-done
+  action:
+    - key: gaps-for-release
+      name: Gaps for a release
+      function: act-gaps-for-release
+      actionVerb: GET
+      description: Lists the blocking gaps and warnings for a release (fix version) and answers whether it can ship under the active standard pack.
+      inputs:
+        release:
+          title: Release
+          type: string
+          required: false
+          description: Release or fix version name, for example v2.3. Omit for the whole project.
+    - key: impact-of-change
+      name: Impact of a change
+      function: act-impact-of-change
+      actionVerb: GET
+      description: Lists every artifact downstream of a requirement, hazard, risk control, design item or issue, and the verifications that must be re-run if it changes.
+      inputs:
+        artifactKey:
+          title: Artifact key
+          type: string
+          required: true
+          description: Jira issue key such as PUMP-4, or a reference such as SRS-004.
+    - key: what-to-retest
+      name: What to re-test
+      function: act-what-to-retest
+      actionVerb: GET
+      description: Lists the tests that must be re-run if the given issue or requirement changes.
+      inputs:
+        artifactKey:
+          title: Artifact key
+          type: string
+          required: true
+          description: Jira issue key such as PUMP-4.
+    - key: trace-chain
+      name: Trace chain
+      function: act-trace-chain
+      actionVerb: GET
+      description: Shows the upstream and downstream trace chain for one artifact, with plain-text statuses and why any link is suspect.
+      inputs:
+        artifactKey:
+          title: Artifact key
+          type: string
+          required: true
+          description: Jira issue key such as PUMP-4, or a reference such as SRS-004.
+    - key: coverage-by-clause
+      name: Coverage by clause
+      function: act-coverage-by-clause
+      actionVerb: GET
+      description: Reports how many traceability checks pass under each clause of a standard pack.
+      inputs:
+        standard:
+          title: Standard
+          type: string
+          required: false
+          description: iec62304, iso26262 or do178c. Omit for the configured pack.
+    - key: draft-impact-analysis
+      name: Draft impact analysis
+      function: act-draft-impact
+      actionVerb: GET
+      description: Returns structured facts (affected items, hazards, tests to repeat, safety level) for writing a change impact analysis for one artifact.
+      inputs:
+        artifactKey:
+          title: Artifact key
+          type: string
+          required: true
+          description: Jira issue key such as PUMP-4.
+    - key: mock-audit
+      name: Mock audit
+      function: act-mock-audit
+      actionVerb: GET
+      description: Generates the questions an auditor is likely to ask from the current gaps and suspect links, with the evidence that would answer each.
+      inputs:
+        scope:
+          title: Scope
+          type: string
+          required: false
+          description: Release name such as v2.3. Omit for the whole project.
+    - key: trace-for-file
+      name: Trace for a file
+      function: act-trace-for-file
+      actionVerb: GET
+      description: Lists the requirements and risk controls implemented by a code file, folder or component, via linked implementation work.
+      inputs:
+        path:
+          title: Path or component
+          type: string
+          required: true
+          description: File path, folder or component name, for example src/occlusion-monitor/.
+  rovo:skill:
+    - key: traceline-auditor-skill
+      source:
+        dir: skills/traceline-auditor
+      dependencies:
+        tools:
+          - gaps-for-release
+          - impact-of-change
+          - what-to-retest
+          - trace-chain
+          - coverage-by-clause
+          - draft-impact-analysis
+          - mock-audit
+          - trace-for-file
+  rovo:agent:
+    - key: traceline-auditor
+      name: Traceline Auditor
+      description: A calm, precise regulatory assistant that answers audit and change-impact questions from your live trace graph, citing artifact keys and clauses.
+      prompt: resource:prompts;auditor.md
+      conversationStarters:
+        - Can we ship v2.3?
+        - What must be re-tested if PUMP-4 changes?
+        - Run a mock audit for v2.3
+        - How is our IEC 62304 clause coverage?
+      actions:
+        - gaps-for-release
+        - impact-of-change
+        - what-to-retest
+        - trace-chain
+        - coverage-by-clause
+        - draft-impact-analysis
+        - mock-audit
+        - trace-for-file
+  rovo:mcp:
+    - key: traceline-mcp
+      name: Traceline
+      tools:
+        - trace-for-file
+        - impact-of-change
+        - gaps-for-release
+        - what-to-retest
+        - trace-chain
+        - coverage-by-clause
   trigger:
     - key: issue-events
       function: on-issue
@@ -68,6 +200,22 @@ modules:
     - key: main
       engine: mysql
   function:
+    - key: act-gaps-for-release
+      handler: index.gapsForRelease
+    - key: act-impact-of-change
+      handler: index.impactOfChangeAction
+    - key: act-what-to-retest
+      handler: index.whatToRetest
+    - key: act-trace-chain
+      handler: index.traceChainAction
+    - key: act-coverage-by-clause
+      handler: index.coverageByClause
+    - key: act-draft-impact
+      handler: index.draftImpactAnalysis
+    - key: act-mock-audit
+      handler: index.mockAuditAction
+    - key: act-trace-for-file
+      handler: index.traceForFile
     - key: panel-resolver
       handler: index.panelHandler
     - key: admin-resolver
@@ -94,6 +242,8 @@ resources:
     path: src/frontend/admin.tsx
   - key: icons
     path: static/icons
+  - key: prompts
+    path: static/prompts
 permissions:
   scopes:
     - storage:app
