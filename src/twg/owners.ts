@@ -43,7 +43,7 @@ RETURN user, collect(distinct team) as teams`;
 
 const accountIdFromAri = (ari: string) => ari.split('/').pop() ?? ari;
 
-type Gql = { data?: Record<string, { edges?: { node?: Record<string, unknown> }[] } | null>; errors?: { message: string; extensions?: { code?: string } }[] };
+type Gql = { data?: Record<string, { edges?: ({ node?: Record<string, unknown> | null } | null)[] | null } | null> | null; errors?: { message: string; extensions?: { code?: string } }[] };
 
 async function twg(query: string, variables: Record<string, unknown>): Promise<Gql | undefined> {
   try {
@@ -73,7 +73,7 @@ async function pageOwnersFromGraph(cloudId: string, page: Artifact): Promise<Per
   if (!r?.data) return undefined;
   const pick = (field: string, role: string) =>
     (r.data?.[field]?.edges ?? [])
-      .map((e) => e.node?.id as string | undefined)
+      .map((e) => e?.node?.id as string | undefined)
       .filter((x): x is string => !!x)
       .map((id) => ({ accountId: accountIdFromAri(id), role, via: page.key }));
   return [...pick('confluencePageOwners', 'Page owner'), ...pick('confluencePageContributors', 'Contributor')];
@@ -92,15 +92,15 @@ async function pageOwnersFromRest(page: Artifact): Promise<Person[]> {
 async function issueOwnersFromGraph(cloudId: string, issue: Artifact, queryKey: string): Promise<Person[] | undefined> {
   const itemAri = `ari:cloud:jira:${cloudId}:issue/${issue.sourceId}`;
   const r = (await twg(PERSISTED, { queryKey, queryParams: { itemAri } })) as
-    | { data?: { customQuery?: { edges?: { node?: { columns?: { key: string; value?: { id?: string; nodes?: { id: string }[] } }[] } }[] } | null } }
+    | { data?: { customQuery?: { edges?: ({ node?: { columns?: { key: string; value?: { id?: string; nodes?: { id: string }[] } | null }[] } | null } | null)[] } | null } | null }
     | undefined;
   const edges = r?.data?.customQuery?.edges;
   if (!edges) return undefined;
   const people: Person[] = [];
   for (const e of edges) {
-    const cols = e.node?.columns ?? [];
+    const cols = e?.node?.columns ?? [];
     const user = cols.find((c) => c.key === 'user')?.value?.id;
-    const teams = (cols.find((c) => c.key === 'teams')?.value?.nodes ?? []).map((t) => t.id);
+    const teams = (cols.find((c) => c.key === 'teams')?.value?.nodes ?? []).filter(Boolean).map((t) => t.id);
     if (user) people.push({ accountId: accountIdFromAri(user), role: 'Assignee', via: issue.key, teams });
   }
   return people;

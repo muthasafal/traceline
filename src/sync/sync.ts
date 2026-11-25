@@ -227,9 +227,17 @@ export async function recordResult(verId: string, result: 'pass' | 'fail', by: s
     recordedBy: by,
   });
   if (ver.source === 'jira') {
+    const current = await jira<{ value?: Record<string, unknown> }>(
+      route`/rest/api/3/issue/${ver.sourceId}/properties/traceline`,
+      {},
+      'Read test property',
+    ).catch(() => undefined);
     await jira(
       route`/rest/api/3/issue/${ver.sourceId}/properties/traceline`,
-      { method: 'PUT', body: JSON.stringify({ result, resultAgainst: against, sample: ver.sample || undefined }) },
+      {
+        method: 'PUT',
+        body: JSON.stringify({ ...(current?.value ?? {}), result, resultAgainst: against, resultAt: now, resultBy: by }),
+      },
       'Save test result',
     );
   }

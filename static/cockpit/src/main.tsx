@@ -140,7 +140,7 @@ function SuspectTimeline({ data }: { data: Cockpit }) {
         {data.suspects.open} open now. A link turns suspect when its upstream item changes after it was verified.
       </p>
       {days.length ? (
-        <svg viewBox={`0 0 ${W} ${H + 18}`} width="100%" role="img" aria-label={days.map((d) => `${d.day}: ${d.opened} opened`).join('; ')}>
+        <svg viewBox={`0 -14 ${W} ${H + 32}`} width="100%" role="img" aria-label={days.map((d) => `${d.day}: ${d.opened} opened`).join('; ')}>
           {days.map((d, i) => {
             const h = Math.max(2, (d.opened / max) * H);
             const x = 4 + i * (bw + 4);

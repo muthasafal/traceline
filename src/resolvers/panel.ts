@@ -9,6 +9,7 @@ import { getSettings } from '../storage/settings';
 import { jira, route } from '../sync/atlassian';
 import { jiraId } from '../sync/mapping';
 import { recordResult, repo, syncIssue } from '../sync/sync';
+import { schedulePublish } from '../sync/publish';
 
 const resolver = new Resolver();
 
@@ -98,6 +99,7 @@ resolver.define('refresh', async ({ payload, context }) => {
 });
 
 resolver.define('recordResult', async ({ payload, context }) => {
+  await schedulePublish().catch(() => undefined);
   const p = payload as { issueKey?: string; result: 'pass' | 'fail' };
   const key = issueKeyOf(p, context as Ctx);
   await assertCanEdit(key);
@@ -110,6 +112,7 @@ resolver.define('recordResult', async ({ payload, context }) => {
 });
 
 resolver.define('reverifyLink', async ({ payload, context }) => {
+  await schedulePublish().catch(() => undefined);
   const p = payload as { issueKey?: string; edgeId: string };
   const key = issueKeyOf(p, context as Ctx);
   await assertCanEdit(key);
@@ -124,6 +127,7 @@ resolver.define('reverifyLink', async ({ payload, context }) => {
 });
 
 resolver.define('clearSuspect', async ({ payload, context }) => {
+  await schedulePublish().catch(() => undefined);
   const p = payload as { issueKey?: string; edgeId: string; justification: string };
   const key = issueKeyOf(p, context as Ctx);
   await assertCanEdit(key);
@@ -139,6 +143,7 @@ resolver.define('clearSuspect', async ({ payload, context }) => {
 });
 
 resolver.define('trackAs', async ({ payload, context }) => {
+  await schedulePublish().catch(() => undefined);
   const p = payload as { issueKey?: string; kind: ArtifactKind };
   const key = issueKeyOf(p, context as Ctx);
   await assertCanEdit(key);
@@ -150,6 +155,7 @@ resolver.define('trackAs', async ({ payload, context }) => {
 });
 
 resolver.define('setLevel', async ({ payload, context }) => {
+  await schedulePublish().catch(() => undefined);
   const p = payload as { issueKey?: string; level: string };
   const key = issueKeyOf(p, context as Ctx);
   await assertCanEdit(key);

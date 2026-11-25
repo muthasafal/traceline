@@ -88,7 +88,10 @@ resolver.define('saveSettings', async ({ payload }) => {
   return status();
 });
 
-resolver.define('getCockpit', async ({ payload }) => cockpit((payload as { release?: string }).release));
+resolver.define('getCockpit', async ({ payload }) => {
+  if (!(await getState('lastPublish'))) await jobs.push({ body: { type: 'publish' } });
+  return cockpit((payload as { release?: string }).release);
+});
 
 resolver.define('takeSnapshot', async ({ payload, context }) =>
   snapshot((payload as { release: string }).release, (context as { accountId?: string }).accountId),

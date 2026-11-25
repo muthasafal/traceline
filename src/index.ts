@@ -9,6 +9,9 @@ import { jobs } from './resolvers/admin';
 import { fullRecompute } from './sync/recompute';
 import { runSampleRemove, runSampleSeed } from './sync/seed';
 import { repo, syncIssue, syncPage } from './sync/sync';
+import { publishReadModel, schedulePublish } from './sync/publish';
+import { getSettings as settingsForPoll } from './storage/settings';
+import { searchPages } from './sync/recompute';
 
 export { panelHandler } from './resolvers/panel';
 export { adminHandler } from './resolvers/admin';
@@ -57,6 +60,7 @@ export async function onIssueEvent(event: IssueEvent) {
   if (!id) return;
   const r = await syncIssue(String(id));
   if (r.versionBumped) log(`version bump ${r.artifact?.key}`, { newSuspects: r.newSuspects });
+  if (r.artifact) await schedulePublish();
 }
 
 /** Product trigger: Jira issue link created / deleted. Both ends are re-synced. */
@@ -65,15 +69,31 @@ export async function onLinkEvent(event: LinkEvent) {
   const src = event.issueLink?.sourceIssueId ?? event.sourceIssueId;
   const dst = event.issueLink?.destinationIssueId ?? event.destinationIssueId;
   for (const id of [src, dst]) if (id !== undefined) await syncIssue(String(id));
+  await schedulePublish();
 }
 
-/** Product trigger: Confluence page created / updated. */
-export async function onPageEvent(event: PageEvent) {
+const isJiraInstall = (context?: { installContext?: string }) => !context?.installContext || context.installContext.includes(':jira:');
+
+/**
+ * Scheduled (every 5 minutes) in the Jira installation: Forge storage is per
+ * installation, so Confluence page edits are picked up here by polling CQL for
+ * recently modified traceable pages, rather than by a Confluence-side trigger.
+ */
+export async function pollPages(_event: unknown, context?: { installContext?: string }) {
+  if (!isJiraInstall(context)) return;
   if (!(await ensureSchema({ migrate: false }))) return;
-  const id = event.content?.id ?? event.page?.id;
-  if (!id) return;
-  const r = await syncPage(String(id));
-  if (r.versionBumped) log(`page version bump ${r.artifact?.key}`, { newSuspects: r.newSuspects });
+  const s = await settingsForPoll();
+  const labels = Object.values(s.pageLabels).filter(Boolean).map((l) => `"${l}"`);
+  if (!labels.length) return;
+  let changed = 0;
+  for await (const p of searchPages(`type = page AND label in (${labels.join(', ')}) AND lastmodified >= now("-15m")`)) {
+    const r = await syncPage(p.id).catch(() => undefined);
+    if (r?.versionBumped) {
+      changed++;
+      log(`page version bump ${r.artifact?.key}`, { newSuspects: r.newSuspects });
+    }
+  }
+  if (changed) await publishReadModel();
 }
 
 /** Lifecycle trigger: install / upgrade. Migrations run in the queue consumer (long timeout). */
@@ -82,7 +102,8 @@ export async function onLifecycle() {
 }
 
 /** Scheduled trigger: nightly full recompute. */
-export async function nightly() {
+export async function nightly(_event: unknown, context?: { installContext?: string }) {
+  if (!isJiraInstall(context)) return;
   await jobs.push({ body: { type: 'recompute' } });
 }
 
@@ -96,12 +117,17 @@ export async function runJob(event: { body?: { type?: string; accountId?: string
       return;
     case 'seed':
       await runSampleSeed(body.accountId!, body.siteUrl!);
+      log('publish', await publishReadModel());
+      return;
+    case 'publish':
+      log('publish', await publishReadModel());
       return;
     case 'remove-sample':
       await runSampleRemove();
       return;
     case 'recompute':
       log('recompute', await fullRecompute());
+      log('publish', await publishReadModel());
       return;
   }
 }

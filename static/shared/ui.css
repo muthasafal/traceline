@@ -56,10 +56,10 @@ button, select, input { font: inherit; color: inherit; }
 .tl-lozenge.neutral { background: var(--tl-neutral-bg); color: var(--tl-subtle); }
 
 /* ---- Trace chain: the signature visual ---- */
-.tl-chain { display: flex; align-items: stretch; gap: 0; overflow-x: auto; padding: 4px 2px 8px; }
+.tl-chain { display: flex; align-items: flex-start; gap: 0; overflow-x: auto; padding: 4px 2px 8px; }
 .tl-chain-col { display: flex; flex-direction: column; gap: 6px; min-width: 148px; max-width: 200px; }
 .tl-chain-col-label { font-size: 11px; line-height: 16px; color: var(--tl-subtlest); text-transform: uppercase; letter-spacing: 0.04em; font-weight: 600; }
-.tl-chain-gap { display: flex; align-items: center; justify-content: center; width: 28px; color: var(--tl-subtlest); padding-top: 22px; }
+.tl-chain-gap { display: flex; align-items: center; justify-content: center; width: 28px; color: var(--tl-subtlest); padding-top: 44px; flex: none; }
 .tl-node { display: block; border: 1px solid var(--tl-border); border-radius: 6px; padding: 6px 8px; background: var(--tl-raised); color: var(--tl-text); }
 .tl-node:hover { text-decoration: none; border-color: var(--tl-selected-border); }
 .tl-node.self { background: var(--tl-selected); border-color: var(--tl-selected-border); }

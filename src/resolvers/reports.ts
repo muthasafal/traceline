@@ -8,6 +8,8 @@ import { ensureSchema } from '../storage/forgeSql';
 import { getSettings, getState, setState } from '../storage/settings';
 import { jira, route } from '../sync/atlassian';
 import { repo } from '../sync/sync';
+import { META_PROPERTY, PublishedRef, PublishedRow, ROW_PROPERTY } from '../sync/publish';
+import { trackedJql } from '../sync/recompute';
 import { redactor, visibleIds } from './visibility';
 
 /**
@@ -134,80 +136,103 @@ export async function chainFor(key: string) {
   };
 }
 
-/** Matrix rows: one per software requirement and risk control, with everything it traces to. */
+/**
+ * Matrix for the Confluence macro / space page. Forge storage is per
+ * installation, so this reads the read model the Jira installation publishes
+ * into Jira entity properties, searching AS THE USER (Jira permissions apply).
+ */
 export async function matrix(release?: string) {
-  const { settings, pack, graph, visible, base } = await context();
-  const scopeRelease = release && release !== '*' ? release : undefined;
-  const gate = evaluateGate(graph, pack, scopeRelease ?? '*', new Date().toISOString(), settings.defaultLevel);
-  const gapsById = new Map<string, Gap[]>();
-  for (const g of [...gate.blocking, ...gate.warnings]) {
-    if (!g.artifactId) continue;
-    gapsById.set(g.artifactId, [...(gapsById.get(g.artifactId) ?? []), g]);
+  const base = await siteUrl();
+  const jql = await trackedJql();
+  const rows: PublishedRow[] = [];
+  const evidence: {
+    key: string; ref?: string; title?: string; kind: string; result: string; at: string;
+    againstVersion: number | null; recordedBy: string | null; url?: string;
+  }[] = [];
+  const projects = new Set<string>();
+  let nextPageToken: string | undefined;
+  do {
+    const page = await jira<{
+      issues: { id: string; key: string; fields: { summary?: string }; properties?: Record<string, unknown> }[];
+      nextPageToken?: string;
+      isLast?: boolean;
+    }>(
+      route`/rest/api/3/search/jql`,
+      {
+        method: 'POST',
+        asUser: true,
+        body: JSON.stringify({ jql, fields: ['summary'], properties: [ROW_PROPERTY, 'traceline'], maxResults: 100, nextPageToken }),
+      },
+      'Read published matrix',
+    );
+    for (const iss of page.issues ?? []) {
+      const row = iss.properties?.[ROW_PROPERTY] as PublishedRow | undefined;
+      if (row?.schema === 1) {
+        rows.push(row);
+        projects.add(iss.key.split('-')[0]);
+      }
+      const t = iss.properties?.traceline as { result?: string; resultAt?: string; resultBy?: string; resultAgainst?: Record<string, number> } | undefined;
+      if (t?.result && t.resultAt) {
+        evidence.push({
+          key: iss.key,
+          ref: /^\[([A-Z]+-\d+)\]/.exec(iss.fields.summary ?? '')?.[1],
+          title: iss.fields.summary,
+          kind: 'test-result',
+          result: t.result,
+          at: t.resultAt,
+          againstVersion: t.resultAgainst ? Object.values(t.resultAgainst)[0] ?? null : null,
+          recordedBy: t.resultBy ?? null,
+          url: `${base}/browse/${iss.key}`,
+        });
+      }
+    }
+    nextPageToken = page.isLast === false || page.nextPageToken ? page.nextPageToken : undefined;
+  } while (nextPageToken);
+
+  type Meta = {
+    standard: { id: string; name: string; basis: string; levelName: string; levels: string[] };
+    clauses: { id: string; title: string }[];
+    releases: string[];
+    gates: Record<string, { green: boolean; summary: string }>;
+    publishedAt: string;
+  };
+  let meta: Meta | undefined;
+  for (const p of projects) {
+    const prop = await jira<{ value?: Meta }>(route`/rest/api/3/project/${p}/properties/${META_PROPERTY}`, { asUser: true }, 'Read meta').catch(
+      () => undefined,
+    );
+    if (prop?.value) {
+      meta = prop.value;
+      break;
+    }
   }
-  const ref = (a: Artifact) => ({
-    key: a.key,
-    ref: refOf(a),
-    title: a.title,
-    url: urlOf(base, a),
-    status: nodeStatus(graph, a).text,
-    tone: nodeStatus(graph, a).tone,
-    visible: visible.has(a.id),
-  });
-  const hide = (xs: ReturnType<typeof ref>[]) => xs.map((x) => (x.visible ? x : { key: 'Restricted', title: 'You cannot view this item', status: '', tone: 'neutral' as const, visible: false }));
-
-  const rows = [...graph.artifacts.values()]
-    .filter((a) => a.kind === 'SRS' || a.kind === 'RC')
-    .filter((a) => !scopeRelease || a.releases?.includes(scopeRelease))
-    .filter((a) => visible.has(a.id))
-    .sort((x, y) => (refOf(x) ?? x.key).localeCompare(refOf(y) ?? y.key, undefined, { numeric: true }))
-    .map((a) => {
-      const up = graph.upstream(a.id);
-      const down = graph.downstream(a.id);
-      const ownGaps = gapsById.get(a.id) ?? [];
-      return {
-        ...ref(a),
-        kind: a.kind,
-        level: levelOf(a, pack, settings.defaultLevel),
-        version: a.version,
-        system: hide(up.filter((u) => u.kind === 'SYS').map(ref)),
-        risk: hide(
-          a.kind === 'RC'
-            ? up.filter((u) => u.kind === 'HAZ').map(ref)
-            : up.filter((u) => u.kind === 'RC').flatMap((rc) => [ref(rc), ...graph.upstream(rc.id, 'mitigates').map(ref)]),
-        ),
-        design: hide(down.filter((d) => d.kind === 'DES').map(ref)),
-        implementation: hide(down.filter((d) => d.kind === 'IMP' || d.kind === 'SRS').map(ref)),
-        verification: hide(down.filter((d) => d.kind === 'VER').map(ref)),
-        gaps: ownGaps.map((g) => ({ clause: g.clause, message: g.message, blocking: g.blocking })),
-        suspect: [...graph.upstreamEdges(a.id), ...graph.downstreamEdges(a.id)].some((e) => graph.openSuspect(e.id)),
-      };
-    });
-
-  const evidence = (await repo.allEvidence())
-    .filter((e) => visible.has(e.artifact_id))
-    .map((e) => {
-      const a = graph.get(e.artifact_id);
-      return {
-        key: a?.key ?? e.artifact_id,
-        ref: a ? refOf(a) : undefined,
-        title: a?.title,
-        kind: e.kind,
-        result: e.result,
-        at: e.at,
-        againstVersion: e.against_version,
-        recordedBy: e.recorded_by,
-        url: urlOf(base, a),
-      };
-    });
-
+  const pack = getPack(meta?.standard.id);
+  const rel = release && release !== '*' ? release : undefined;
+  const toUrl = (r: PublishedRef) =>
+    r.source === 'jira' ? `${base}/browse/${r.key}` : r.source === 'confluence' ? `${base}/wiki/pages/viewpage.action?pageId=${r.sourceId}` : undefined;
+  const withUrls = (xs: PublishedRef[]) => xs.map((x) => ({ ...x, title: x.ref ?? x.key, url: toUrl(x), visible: true }));
+  const out = rows
+    .filter((r) => !rel || r.releases.includes(rel))
+    .sort((x, y) => (x.ref ?? x.key).localeCompare(y.ref ?? y.key, undefined, { numeric: true }))
+    .map((r) => ({
+      ...r,
+      url: `${base}/browse/${r.key}`,
+      visible: true,
+      system: withUrls(r.system),
+      risk: withUrls(r.risk),
+      design: withUrls(r.design),
+      implementation: withUrls(r.implementation),
+      verification: withUrls(r.verification),
+    }));
+  const gate = meta?.gates[rel ?? '*'] ?? { green: false, summary: 'Traceline has not published a release gate yet. Open the Traceline cockpit in Jira once.' };
   return {
-    standard: { id: pack.id, name: pack.name, basis: pack.basis, levelName: pack.levelName, levels: pack.levels },
-    clauses: pack.clauses,
-    releases: releasesOf(graph),
-    release: scopeRelease ?? '*',
-    gate: { green: gate.green, summary: gate.summary },
-    rows,
-    evidence,
-    generatedAt: new Date().toISOString(),
+    standard: meta?.standard ?? { id: pack.id, name: pack.name, basis: pack.basis, levelName: pack.levelName, levels: [...pack.levels] },
+    clauses: meta?.clauses ?? pack.clauses,
+    releases: meta?.releases ?? [],
+    release: rel ?? '*',
+    gate,
+    rows: out,
+    evidence: evidence.sort((a, b) => b.at.localeCompare(a.at)),
+    generatedAt: meta?.publishedAt ?? new Date().toISOString(),
   };
 }

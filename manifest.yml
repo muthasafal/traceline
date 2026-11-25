@@ -209,11 +209,6 @@ modules:
         - avi:jira:deleted:issuelink
       filter:
         ignoreSelf: true
-    - key: page-events
-      function: on-page
-      events:
-        - avi:confluence:created:page
-        - avi:confluence:updated:page
     - key: lifecycle-events
       function: on-lifecycle
       events:
@@ -223,6 +218,9 @@ modules:
     - key: nightly-recompute
       function: nightly
       interval: day
+    - key: confluence-page-poll
+      function: poll-pages
+      interval: fiveMinute
   consumer:
     - key: jobs-consumer
       queue: traceline-jobs
@@ -261,8 +259,8 @@ modules:
       handler: index.onIssueEvent
     - key: on-link
       handler: index.onLinkEvent
-    - key: on-page
-      handler: index.onPageEvent
+    - key: poll-pages
+      handler: index.pollPages
     - key: on-lifecycle
       handler: index.onLifecycle
     - key: nightly
