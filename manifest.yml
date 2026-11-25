@@ -15,6 +15,14 @@ modules:
       render: native
       title: Traceline
       useAsGetStarted: true
+  jira:globalPage:
+    - key: traceline-home
+      resource: admin
+      resolver:
+        function: admin-resolver
+      render: native
+      title: Traceline
+      icon: resource:icons;trace.svg
   jira:workflowValidator:
     - key: passing-verification-validator
       name: Requires passing verification (Traceline)

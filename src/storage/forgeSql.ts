@@ -1,3 +1,4 @@
+import { kvs } from '@forge/kvs';
 import { migrationRunner, sql } from '@forge/sql';
 import { SqlClient, SqlValue } from './db';
 import { MIGRATIONS } from './schema';
@@ -17,17 +18,42 @@ export const forgeSql: SqlClient = {
   },
 };
 
-let schemaReady: Promise<void> | undefined;
+let schemaReady: Promise<boolean> | undefined;
+const SCHEMA_KEY = 'state:schemaVersion';
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-/** Applies pending migrations once per warm container. Safe to call before every request. */
-export function ensureSchema(): Promise<void> {
-  schemaReady ??= (async () => {
-    let runner = migrationRunner;
-    for (const [name, ddl] of MIGRATIONS) runner = runner.enqueue(name, ddl);
-    await runner.run();
+/**
+ * Applies pending migrations. Forge SQL allows only 25 DDL statements a minute
+ * per installation, so the applied version is recorded in KVS and every later
+ * call is a single KVS read. Pass `migrate: false` from triggers so bursts of
+ * events never run DDL; they skip work until the schema is ready.
+ */
+export function ensureSchema(opts: { migrate?: boolean } = {}): Promise<boolean> {
+  const migrate = opts.migrate ?? true;
+  if (schemaReady) return schemaReady;
+  const attempt = (async () => {
+    if ((await kvs.get<number>(SCHEMA_KEY)) === MIGRATIONS.length) return true;
+    if (!migrate) return false;
+    for (let tries = 0; ; tries++) {
+      try {
+        let runner = migrationRunner;
+        for (const [name, ddl] of MIGRATIONS) runner = runner.enqueue(name, ddl);
+        await runner.run();
+        break;
+      } catch (e) {
+        if (tries >= 6) throw e;
+        await sleep(10_000); // rate limited or racing another invocation; wait for the DDL window
+      }
+    }
     await seedClauses();
-  })().catch((err) => {
-    schemaReady = undefined; // retry on next call
+    await kvs.set(SCHEMA_KEY, MIGRATIONS.length);
+    return true;
+  })();
+  schemaReady = attempt.then((ok) => {
+    if (!ok) schemaReady = undefined; // check again next time
+    return ok;
+  }).catch((err) => {
+    schemaReady = undefined;
     throw err;
   });
   return schemaReady;

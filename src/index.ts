@@ -21,7 +21,7 @@ export async function validateDone(args: { issue?: { key?: string } }) {
     const key = args.issue?.key;
     const settings = await getSettings();
     if (!key || !settings.validatorEnabled) return { result: true };
-    await ensureSchema();
+    if (!(await ensureSchema({ migrate: false }))) return { result: true };
     // Make sure this issue's links are current before deciding.
     await syncIssue(key);
     const g = await repo.loadGraph();
@@ -40,7 +40,7 @@ type PageEvent = { content?: { id?: string }; page?: { id?: string } };
 
 /** Product trigger: Jira issue created / updated / deleted. */
 export async function onIssueEvent(event: IssueEvent) {
-  await ensureSchema();
+  if (!(await ensureSchema({ migrate: false }))) return;
   const id = event.issue?.id;
   if (!id) return;
   const r = await syncIssue(String(id));
@@ -49,7 +49,7 @@ export async function onIssueEvent(event: IssueEvent) {
 
 /** Product trigger: Jira issue link created / deleted. Both ends are re-synced. */
 export async function onLinkEvent(event: LinkEvent) {
-  await ensureSchema();
+  if (!(await ensureSchema({ migrate: false }))) return;
   const src = event.issueLink?.sourceIssueId ?? event.sourceIssueId;
   const dst = event.issueLink?.destinationIssueId ?? event.destinationIssueId;
   for (const id of [src, dst]) if (id !== undefined) await syncIssue(String(id));
@@ -57,7 +57,7 @@ export async function onLinkEvent(event: LinkEvent) {
 
 /** Product trigger: Confluence page created / updated. */
 export async function onPageEvent(event: PageEvent) {
-  await ensureSchema();
+  if (!(await ensureSchema({ migrate: false }))) return;
   const id = event.content?.id ?? event.page?.id;
   if (!id) return;
   const r = await syncPage(String(id));
