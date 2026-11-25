@@ -9,6 +9,7 @@ import { getSettings, getState, saveSettings, setState, Settings } from '../stor
 import { jira, route } from '../sync/atlassian';
 import { getSampleState, SAMPLE_PROJECT_KEY } from '../sync/seed';
 import { repo } from '../sync/sync';
+import { chainFor, cockpit, snapshot } from './reports';
 
 export const jobs = new Queue({ key: 'traceline-jobs' });
 
@@ -85,5 +86,13 @@ resolver.define('saveSettings', async ({ payload }) => {
   await saveSettings(patch);
   return status();
 });
+
+resolver.define('getCockpit', async ({ payload }) => cockpit((payload as { release?: string }).release));
+
+resolver.define('takeSnapshot', async ({ payload, context }) =>
+  snapshot((payload as { release: string }).release, (context as { accountId?: string }).accountId),
+);
+
+resolver.define('getChain', async ({ payload }) => chainFor(String((payload as { key?: string }).key ?? '')));
 
 export const adminHandler = resolver.getDefinitions();

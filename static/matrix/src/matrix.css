@@ -1,0 +1,11 @@
+.matrix { padding: 8px 4px 16px; display: flex; flex-direction: column; gap: 12px; }
+.matrix-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; flex-wrap: wrap; }
+.filters label { display: flex; flex-direction: column; gap: 2px; font-size: 12px; color: var(--tl-subtle); }
+.matrix-scroll { overflow: auto; max-height: 640px; border: 1px solid var(--tl-border); border-radius: var(--tl-radius); }
+.matrix .tl-table th[scope='row'] { text-align: left; font-weight: 400; min-width: 200px; max-width: 280px; }
+.matrix .tl-table th[scope='row'] a { font-weight: 653; }
+.matrix .tl-table td { min-width: 110px; }
+.matrix .tl-table tr.gap th[scope='row'] { box-shadow: inset 3px 0 0 var(--tl-bad-bold); }
+.row-title { color: var(--tl-subtle); font-size: 12px; line-height: 16px; margin: 2px 0 4px; }
+.refs { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.missing { color: var(--tl-bad); font-size: 12px; font-style: italic; }

@@ -12,6 +12,7 @@ import { repo, syncIssue, syncPage } from './sync/sync';
 
 export { panelHandler } from './resolvers/panel';
 export { adminHandler } from './resolvers/admin';
+export { matrixHandler } from './resolvers/matrix';
 export {
   gapsForRelease,
   impactOfChangeAction,

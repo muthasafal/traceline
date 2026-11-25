@@ -238,6 +238,13 @@ export class TraceRepository {
     );
   }
 
+  /** Latest evidence rows across all artifacts, newest first (for the DHF export). */
+  async allEvidence(limit = 2000) {
+    return this.db.query<{ artifact_id: string; kind: string; result: string; at: string; ref: string | null; against_version: number | null; recorded_by: string | null }>(
+      `SELECT artifact_id, kind, result, at, ref, against_version, recorded_by FROM evidence ORDER BY id DESC LIMIT ${Math.max(1, Math.min(5000, Math.floor(limit)))}`,
+    );
+  }
+
   async saveSnapshot(releaseId: string, green: boolean, payload: unknown, at: string, by?: string): Promise<void> {
     await this.db.exec(
       'INSERT INTO snapshot (release_id, created_at, created_by, green, coverage_json) VALUES (?, ?, ?, ?, ?)',

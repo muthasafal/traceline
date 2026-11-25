@@ -46,3 +46,18 @@ Steering doc. Checked against developer.atlassian.com on **2026-11-25**. `docs/B
 
 ## Sources
 manifest-reference/modules/{rovo-agent, rovo-action, rovo-skill, rovo-mcp, jira-issue-panel, jira-global-page, jira-workflow-validator, macro, trigger, scheduled-trigger, sql}; storage-reference/{sql, sql-api, sql-api-schema}; runtime-reference/async-events-api; events-reference/{product_events, confluence}; teamwork-graph/{call-the-teamwork-graph-api, scopes, graphql-and-cypher}; manifest-reference (runtime).
+
+## Found while deploying (2026-11-25)
+- **A Confluence `macro` cannot coexist with a `rovo:agent` that lists `actions`.** Deploy fails server-side with `Manifest validation failed: Agent not allowed`. This was bisected on Forge CLI 16.0.0:
+  - agent with actions and no macro: OK
+  - macro plus an agent with no actions: OK
+  - macro plus an agent with even one action: fails, with or without a macro resolver, UI Kit or Custom UI, inline or file prompt
+  - `confluence:spacePage` plus an agent with actions: OK
+
+  Traceline therefore ships the matrix as a `confluence:spacePage` (same UI and DHF export). Revisit if Atlassian lifts this.
+- `rovo:agent` with `skills: [<rovo:skill key>]` (instead of `actions`) also failed with `Agent not allowed`. The `rovo:skill` module itself deploys, packaging the same actions.
+- `jira:workflowValidator` and other trigger functions cannot set `timeoutSeconds`; only consumer and scheduled-trigger functions can.
+- `filter.ignoreSelf` only works for Jira events.
+- Forge SQL allows 25 DDL statements per minute per installation. Run migrations once, record them in KVS, and never run DDL from triggers.
+- The Forge CLI's credential-file check deletes `%LOCALAPPDATA%\Atlassian\Forge\credentials.json` when `icacls` fails, which it does in Claude's sandboxed shell. Use `FORGE_EMAIL` and `FORGE_API_TOKEN` (`Hackathon\forge.ps1`).
+- ts-loader in `forge deploy` needs `noEmit` off in `tsconfig.json`.

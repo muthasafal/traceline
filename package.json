@@ -8,14 +8,20 @@
   "scripts": {
     "test": "vitest run",
     "test:watch": "vitest",
-    "typecheck": "tsc --noEmit",
-    "lint:manifest": "forge lint"
+    "typecheck": "tsc --noEmit && tsc -p tsconfig.ui.json",
+    "lint:manifest": "forge lint",
+    "build:ui": "vite build static/cockpit && vite build static/matrix",
+    "predeploy": "npm run typecheck && npm test && npm run build:ui"
   },
   "devDependencies": {
     "@types/node": "^24.19.2",
     "@types/react": "^18.3.32",
+    "@types/react-dom": "^18.3.7",
+    "@vitejs/plugin-react": "^4.7.0",
     "fast-check": "^4.11.0",
+    "react-dom": "^18.3.1",
     "typescript": "5.9",
+    "vite": "^6.4.6",
     "vitest": "^5.1.1"
   },
   "dependencies": {
@@ -26,6 +32,7 @@
     "@forge/react": "^12.6.0",
     "@forge/resolver": "^2.0.2",
     "@forge/sql": "^4.0.11",
+    "pdf-lib": "^1.17.1",
     "react": "^18.3.1"
   }
 }

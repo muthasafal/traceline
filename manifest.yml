@@ -17,12 +17,19 @@ modules:
       useAsGetStarted: true
   jira:globalPage:
     - key: traceline-home
-      resource: admin
+      resource: cockpit
       resolver:
         function: admin-resolver
-      render: native
       title: Traceline
       icon: resource:icons;trace.svg
+      layout: native
+  confluence:spacePage:
+    - key: traceability-matrix-page
+      resource: matrix
+      resolver:
+        function: matrix-resolver
+      title: Traceability matrix
+      route: traceability
   jira:workflowValidator:
     - key: passing-verification-validator
       name: Requires passing verification (Traceline)
@@ -220,6 +227,8 @@ modules:
       handler: index.panelHandler
     - key: admin-resolver
       handler: index.adminHandler
+    - key: matrix-resolver
+      handler: index.matrixHandler
     - key: validate-done
       handler: index.validateDone
     - key: on-issue
@@ -244,6 +253,10 @@ resources:
     path: static/icons
   - key: prompts
     path: static/prompts
+  - key: cockpit
+    path: static/cockpit/build
+  - key: matrix
+    path: static/matrix/build
 permissions:
   scopes:
     - storage:app
