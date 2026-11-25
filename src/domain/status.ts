@@ -116,11 +116,20 @@ export function traceChain(graph: TraceGraph, idOrKey: string): TraceChain | und
 
   const suspects = links.filter((l) => l.suspect).length;
   const tests = down.filter((a) => a.kind === 'VER');
-  const passing = tests.filter((t) => t.result === 'pass').length;
+  // A test only counts if it passed against the CURRENT version of everything it verifies.
+  const passing = tests.filter(
+    (t) =>
+      t.result === 'pass' &&
+      graph
+        .upstreamEdges(t.id, 'verifies')
+        .every((e) => e.verifiedAgainstVersion === graph.get(e.toId)!.version && !graph.openSuspect(e.id)),
+  ).length;
   const parts = [
     `${root.key} is ${nodes[0].status.text}`,
     `${up.length} upstream and ${down.length} downstream artifact${down.length === 1 ? '' : 's'}`,
-    tests.length ? `${passing} of ${tests.length} linked test${tests.length === 1 ? '' : 's'} passing` : 'no linked tests',
+    tests.length
+      ? `${passing} of ${tests.length} linked test${tests.length === 1 ? '' : 's'} passing against current versions`
+      : 'no linked tests',
   ];
   if (suspects) parts.push(`${suspects} suspect link${suspects === 1 ? '' : 's'}`);
   return { root: nodes[0], columns, links, summary: parts.join('; ') + '.' };

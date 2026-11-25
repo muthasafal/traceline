@@ -116,6 +116,8 @@ describe('release gate and the sample project', () => {
     expect(chain.columns.map((c) => c.kind)).toEqual(['SYS', 'HAZ', 'RC', 'SRS', 'DES', 'IMP', 'VER']);
     expect(chain.root.status.text).toBe('suspect since 12 Dec');
     expect(chain.links.some((l) => l.suspect)).toBe(true);
+    // VER-004 passed an older version, so it must not count as passing.
+    expect(chain.summary).toMatch(/1 of 2 linked tests passing against current versions/);
   });
 
   it('mock audit and impact facts are grounded in artifact keys', () => {
